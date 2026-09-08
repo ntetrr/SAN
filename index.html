@@ -1,0 +1,776 @@
+<title>Revisión RITE y Mapas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root{
+    --paper:#F5F3EE;
+    --surface:#FFFFFF;
+    --surface-sunk:#EFEDE5;
+    --ink:#1E2A38;
+    --ink-soft:#55606E;
+    --ink-faint:#8A8F98;
+    --line:#DBD6C9;
+    --line-strong:#C7C1B1;
+    --accent:#2F5D8A;
+    --accent-soft:#E7EEF5;
+    --error:#B23B3B;
+    --error-soft:#F6E5E3;
+    --warn:#B07D1E;
+    --warn-soft:#F7EDDA;
+    --ok:#3E7A5E;
+    --ok-soft:#E4EFE9;
+    --shadow:0 1px 2px rgba(30,42,56,.06), 0 8px 24px rgba(30,42,56,.06);
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#14181E;
+      --surface:#1D232B;
+      --surface-sunk:#191E25;
+      --ink:#E7EAEE;
+      --ink-soft:#A6AEB9;
+      --ink-faint:#78818D;
+      --line:#2E3640;
+      --line-strong:#3C4650;
+      --accent:#7FB0DC;
+      --accent-soft:#233240;
+      --error:#E58A82;
+      --error-soft:#3A2724;
+      --warn:#E0B565;
+      --warn-soft:#382E1C;
+      --ok:#84C4A4;
+      --ok-soft:#213028;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#14181E;
+    --surface:#1D232B;
+    --surface-sunk:#191E25;
+    --ink:#E7EAEE;
+    --ink-soft:#A6AEB9;
+    --ink-faint:#78818D;
+    --line:#2E3640;
+    --line-strong:#3C4650;
+    --accent:#7FB0DC;
+    --accent-soft:#233240;
+    --error:#E58A82;
+    --error-soft:#3A2724;
+    --warn:#E0B565;
+    --warn-soft:#382E1C;
+    --ok:#84C4A4;
+    --ok-soft:#213028;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height:1.55;
+    margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:40px 24px 96px}
+
+  header.masthead{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:30px}
+  .eyebrow{
+    font-family:"IBM Plex Mono", ui-monospace, monospace;
+    font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 10px;
+  }
+  h1{
+    font-family:"Fraunces", Georgia, serif;
+    font-weight:600;font-size:clamp(1.7rem,4.4vw,2.5rem);
+    line-height:1.1;margin:0 0 12px;text-wrap:balance;letter-spacing:-.01em;
+  }
+  .lede{margin:0;max-width:60ch;color:var(--ink-soft);font-size:15px}
+
+  h2{
+    font-family:"Fraunces", Georgia, serif;
+    font-weight:600;font-size:1.15rem;margin:0 0 4px;letter-spacing:-.005em;
+  }
+  .step-num{
+    font-family:"IBM Plex Mono", monospace;color:var(--ink-faint);
+    font-size:12px;letter-spacing:.1em;
+  }
+
+  section{margin-top:34px}
+  .uploads{
+    display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;
+  }
+  @media (max-width:640px){.uploads{grid-template-columns:1fr}}
+
+  .drop{
+    position:relative;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .drop.dragover{border-color:var(--accent);background:var(--accent-soft)}
+  .drop.state-ok{border-color:color-mix(in srgb,var(--ok) 55%,var(--line))}
+  .drop.state-error{border-color:color-mix(in srgb,var(--error) 55%,var(--line))}
+  .drop-kicker{
+    font-family:"IBM Plex Mono", monospace;font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px;
+  }
+  .drop-title{font-weight:600;font-size:14.5px;margin-bottom:3px}
+  .drop-hint{font-size:12.5px;color:var(--ink-soft);min-height:2.6em}
+  .drop .zone{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;margin-top:16px;min-height:96px;
+    border:1.5px dashed var(--line-strong);border-radius:9px;
+    padding:18px 16px;text-align:center;font-size:13px;line-height:1.4;
+    color:var(--ink-soft);cursor:pointer;background:var(--surface-sunk);
+    transition:border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .drop .zone:hover{border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
+  .drop .zone .z-main{font-weight:500;color:var(--ink)}
+  .drop .zone b{color:var(--accent);font-weight:600}
+  .drop input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+  .status{
+    display:flex;gap:10px;align-items:flex-start;margin-top:14px;
+    font-size:13px;padding:11px 12px;border-radius:8px;background:var(--surface-sunk);
+  }
+  .status .dot{
+    flex:none;width:9px;height:9px;border-radius:50%;margin-top:5px;background:var(--ink-faint);
+  }
+  .status.ok{background:var(--ok-soft)} .status.ok .dot{background:var(--ok)}
+  .status.error{background:var(--error-soft)} .status.error .dot{background:var(--error)}
+  .status .msg strong{display:block;font-weight:600;margin-bottom:1px}
+  .status .msg span{color:var(--ink-soft)}
+  .status .file{
+    font-family:"IBM Plex Mono", monospace;font-size:11.5px;color:var(--ink-faint);
+    word-break:break-all;display:block;margin-top:3px;
+  }
+
+  .actions{display:flex;align-items:center;gap:16px;margin-top:24px;flex-wrap:wrap}
+  button.process{
+    font:inherit;font-weight:600;font-size:14px;
+    background:var(--accent);color:#fff;border:0;border-radius:8px;
+    padding:11px 22px;cursor:pointer;box-shadow:var(--shadow);
+    transition:filter .15s ease, transform .05s ease;
+  }
+  :root[data-theme="dark"] button.process,
+  :root:not([data-theme="light"]) button.process{color:#10151b}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) button.process{color:#10151b}}
+  button.process:hover:not(:disabled){filter:brightness(1.06)}
+  button.process:active:not(:disabled){transform:translateY(1px)}
+  button.process:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+  .actions .note{font-size:12.5px;color:var(--ink-faint)}
+  button.reset{
+    font:inherit;font-size:12.5px;color:var(--ink-soft);background:none;
+    border:1px solid var(--line);border-radius:7px;padding:7px 13px;cursor:pointer;
+  }
+  button.reset:hover{border-color:var(--line-strong);color:var(--ink)}
+
+  /* ---- results ---- */
+  #results{margin-top:14px}
+  .info-note{
+    background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);
+    border-radius:var(--radius);padding:12px 16px;margin-bottom:18px;
+    font-size:13px;color:var(--ink-soft);
+  }
+  .info-note p{margin:0}
+  .info-note p + p{margin-top:6px}
+  .example-flag{
+    display:inline-flex;align-items:center;gap:8px;font-size:12px;
+    font-family:"IBM Plex Mono", monospace;letter-spacing:.04em;
+    color:var(--warn);background:var(--warn-soft);
+    padding:5px 11px;border-radius:999px;margin-bottom:16px;
+  }
+
+  .verdict{
+    border-radius:var(--radius);padding:22px 24px;margin-bottom:20px;
+    box-shadow:var(--shadow);border:1px solid var(--line);background:var(--surface);
+    display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;
+  }
+  .verdict.clean{background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 40%,var(--line))}
+  .verdict h3{
+    font-family:"Fraunces", Georgia, serif;font-weight:600;font-size:1.4rem;margin:0;
+  }
+  .verdict p{margin:0;color:var(--ink-soft);font-size:13.5px}
+
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+  @media (max-width:560px){.tiles{grid-template-columns:1fr}}
+  .tile{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;box-shadow:var(--shadow);border-top:3px solid var(--line-strong);
+  }
+  .tile.err{border-top-color:var(--error)}
+  .tile.wrn{border-top-color:var(--warn)}
+  .tile.good{border-top-color:var(--ok)}
+  .tile .n{
+    font-family:"Fraunces", Georgia, serif;font-weight:700;font-size:2rem;
+    line-height:1;font-variant-numeric:tabular-nums;
+  }
+  .tile.err .n{color:var(--error)} .tile.wrn .n{color:var(--warn)} .tile.good .n{color:var(--ok)}
+  .tile .lbl{
+    font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-faint);margin-top:6px;font-family:"IBM Plex Mono",monospace;
+  }
+
+  .group-label{
+    font-family:"IBM Plex Mono", monospace;font-size:11px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-faint);
+    margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);
+  }
+
+  .stu{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);
+    border-left:3px solid var(--line-strong);
+  }
+  .stu.has-error{border-left-color:var(--error)}
+  .stu.has-warn{border-left-color:var(--warn)}
+  .stu-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .stu-name{font-weight:600;font-size:14px}
+  .badge{
+    font-family:"IBM Plex Mono", monospace;font-size:11px;font-weight:500;
+    padding:2px 7px;border-radius:5px;background:var(--surface-sunk);color:var(--ink-soft);
+    border:1px solid var(--line);letter-spacing:.03em;
+  }
+  .badge.rite{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+  .findings{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .findings li{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--ink-soft)}
+  .findings li .sev{
+    flex:none;width:7px;height:7px;border-radius:50%;margin-top:6px;
+  }
+  .findings li.e .sev{background:var(--error)}
+  .findings li.w .sev{background:var(--warn)}
+  .findings li b{color:var(--ink);font-weight:600}
+
+  details.clean-list{margin-top:20px}
+  details.clean-list summary{
+    cursor:pointer;font-size:13px;color:var(--ink-soft);
+    font-family:"IBM Plex Mono", monospace;letter-spacing:.03em;
+  }
+  details.clean-list .names{
+    margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;
+  }
+  details.clean-list .names span{
+    font-size:12.5px;padding:3px 9px;border-radius:6px;
+    background:var(--ok-soft);color:var(--ok);
+  }
+
+  footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--ink-faint);line-height:1.7}
+
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">ETRR · Revisión de cierre de cuatrimestre</p>
+    <h1>Revisión de RITE y Mapas de Aprendizaje</h1>
+    <p class="lede">Cada docente sube sus dos planillas &mdash; <strong>Calificaciones</strong> y <strong>Mapa de Aprendizaje</strong>. Cuando ambas tienen el formato correcto, el botón <em>Procesar</em> cruza los datos y marca las inconsistencias entre la nota final, el RITE y las valoraciones del mapa. Al recargar la página no queda nada guardado.</p>
+  </header>
+
+  <section>
+    <span class="step-num">PASO 1</span>
+    <h2>Subí las dos planillas</h2>
+    <div class="uploads">
+      <div class="drop" id="drop-notas" data-kind="notas">
+        <div class="drop-kicker">Archivo A</div>
+        <div class="drop-title">Calificaciones</div>
+        <div class="drop-hint">Debe incluir columnas <strong>RITE</strong>, <strong>Ob</strong> (observación) y <strong>Final 100%</strong>.</div>
+        <label class="zone" for="file-notas">
+          <span class="z-main">Arrastrá el <b>.xlsx</b> de notas</span>
+          <span>o hacé clic para elegirlo</span>
+        </label>
+        <input type="file" id="file-notas" accept=".xlsx">
+        <div class="status" id="status-notas" hidden></div>
+      </div>
+
+      <div class="drop" id="drop-mapa" data-kind="mapa">
+        <div class="drop-kicker">Archivo B</div>
+        <div class="drop-title">Mapa de Aprendizaje</div>
+        <div class="drop-hint">Debe incluir la columna <strong>Estudiante</strong> y las valoraciones (<strong>EP</strong> / <strong>S</strong> / <strong>MS</strong>).</div>
+        <label class="zone" for="file-mapa">
+          <span class="z-main">Arrastrá el <b>.xlsx</b> del mapa</span>
+          <span>o hacé clic para elegirlo</span>
+        </label>
+        <input type="file" id="file-mapa" accept=".xlsx">
+        <div class="status" id="status-mapa" hidden></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="process" id="btn-process" disabled>Procesar</button>
+      <button class="reset" id="btn-reset" hidden>Limpiar todo</button>
+      <span class="note" id="process-note">Esperando las dos planillas&hellip;</span>
+    </div>
+  </section>
+
+  <section>
+    <span class="step-num">PASO 2</span>
+    <h2>Resumen del análisis</h2>
+    <div id="results"></div>
+  </section>
+
+  <footer id="rules">
+    <strong>Qué se controla en cada estudiante</strong><br>
+    · Nota final &ge; 7 &rarr; el RITE debe ser <b>TEA</b>.<br>
+    · RITE <b>TEP</b> o <b>TED</b> &rarr; la nota final debe ser menor a 7.<br>
+    · Nota final menor a 7 &rarr; debe tener un comentario (columna Ob). &nbsp; Nota 10 sin comentario &rarr; sugerencia.<br>
+    · 1 valoración <b>EP</b> en el mapa con RITE TEA &rarr; advertencia. &nbsp; Más de una EP con TEA &rarr; error (debería ser TEP o TED).<br>
+    · Se avisa si un estudiante figura en una planilla y no en la otra, o si las planillas parecen de asignaturas distintas.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var META_HEADER = /^(n[º°o.]*|nro\.?|estudiante|estado|curso|asignatura)$/i;
+  var VALID_RITE = ["TEA","TEP","TED"];
+
+  var state = { notas:null, mapa:null, processedReal:false };
+
+  var els = {
+    btnProcess: document.getElementById('btn-process'),
+    btnReset:   document.getElementById('btn-reset'),
+    note:       document.getElementById('process-note'),
+    results:    document.getElementById('results')
+  };
+
+  /* ---------- helpers ---------- */
+  function norm(s){
+    return String(s == null ? "" : s)
+      .normalize('NFD').replace(/[̀-ͯ]/g,'')
+      .toLowerCase().replace(/\s*,\s*/g,', ').replace(/\s+/g,' ').trim();
+  }
+  function cell(row,i){ var v = row[i]; return v == null ? "" : String(v).trim(); }
+  function toNum(v){
+    if(v === "" || v == null) return NaN;
+    return parseFloat(String(v).replace(',','.').replace(/[^0-9.\-]/g,''));
+  }
+  function findHeaderRow(rows){
+    for(var i=0;i<Math.min(rows.length,15);i++){
+      var r = rows[i] || [];
+      for(var j=0;j<r.length;j++){
+        if(norm(r[j]) === 'estudiante') return i;
+      }
+    }
+    return -1;
+  }
+  function colIndex(headers, test){
+    for(var i=0;i<headers.length;i++){ if(test(String(headers[i]||"").trim())) return i; }
+    return -1;
+  }
+
+  /* ---------- parse ---------- */
+  function readFile(file){
+    return new Promise(function(resolve,reject){
+      var fr = new FileReader();
+      fr.onload = function(){
+        try{
+          var wb = XLSX.read(new Uint8Array(fr.result), {type:'array'});
+          var ws = wb.Sheets[wb.SheetNames[0]];
+          var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:"", blankrows:false});
+          resolve(rows);
+        }catch(e){ reject(e); }
+      };
+      fr.onerror = function(){ reject(new Error('No se pudo leer el archivo.')); };
+      fr.readAsArrayBuffer(file);
+    });
+  }
+
+  function validateNotas(rows){
+    var hr = findHeaderRow(rows);
+    if(hr < 0) return { ok:false, error:'No se encontró la columna "Estudiante". ¿Es la planilla de calificaciones?' };
+    var headers = rows[hr];
+    var iEst  = colIndex(headers, function(h){ return norm(h) === 'estudiante'; });
+    var iRite = colIndex(headers, function(h){ return /rite/i.test(h); });
+    var iObs  = colIndex(headers, function(h){ return /^ob\b/i.test(h) || /observ/i.test(h); });
+    var iFin  = colIndex(headers, function(h){ return /final/i.test(h); });
+
+    var missing = [];
+    if(iRite < 0) missing.push('RITE');
+    if(iObs  < 0) missing.push('Ob / Observación');
+    if(iFin  < 0) missing.push('Final');
+    if(missing.length) return { ok:false, error:'Faltan columnas en la planilla de calificaciones: ' + missing.join(', ') + '.' };
+
+    var iAsig = colIndex(headers, function(h){ return norm(h) === 'asignatura'; });
+    var data = new Map();
+    var asignaturas = new Set();
+    for(var r=hr+1;r<rows.length;r++){
+      var row = rows[r] || [];
+      var name = cell(row,iEst);
+      if(!name) continue;
+      var rite = cell(row,iRite).toUpperCase();
+      var obs  = cell(row,iObs);
+      var finRaw = cell(row,iFin);
+      if(iAsig>=0 && cell(row,iAsig)) asignaturas.add(cell(row,iAsig));
+      data.set(norm(name), {
+        name:name, rite:rite, hasComment: obs.length>0,
+        finalRaw:finRaw, final: toNum(finRaw)
+      });
+    }
+    if(!data.size) return { ok:false, error:'La planilla no tiene filas de estudiantes.' };
+    return {
+      ok:true, data:data,
+      meta:{ count:data.size, cols:[headers[iRite], headers[iObs], headers[iFin]].map(function(x){return String(x).trim();}), asignaturas:asignaturas }
+    };
+  }
+
+  function validateMapa(rows){
+    var hr = findHeaderRow(rows);
+    if(hr < 0) return { ok:false, error:'No se encontró la columna "Estudiante". ¿Es la planilla de mapa de aprendizaje?' };
+    var headers = rows[hr];
+    var iEst = colIndex(headers, function(h){ return norm(h) === 'estudiante'; });
+    var iRite = colIndex(headers, function(h){ return /^rite/i.test(h.trim()); });
+    if(iRite >= 0) return { ok:false, error:'Esta planilla tiene columna RITE: parece el archivo de calificaciones, no el de mapa.' };
+    var iAsig = colIndex(headers, function(h){ return norm(h) === 'asignatura'; });
+
+    var valCols = [];
+    for(var c=0;c<headers.length;c++){
+      var h = String(headers[c]||"").trim();
+      if(c === iEst) continue;
+      if(!h) continue;
+      if(META_HEADER.test(h)) continue;
+      if(/final/i.test(h)) continue;
+      valCols.push(c);
+    }
+    if(!valCols.length) return { ok:false, error:'No se encontraron columnas de valoración (EP / S / MS) en el mapa.' };
+
+    var data = new Map();
+    var asignaturas = new Set();
+    var filledTotal = 0;
+    var otherVals = new Set();
+    for(var r=hr+1;r<rows.length;r++){
+      var row = rows[r] || [];
+      var name = cell(row,iEst);
+      if(!name) continue;
+      if(iAsig>=0 && cell(row,iAsig)) asignaturas.add(cell(row,iAsig));
+      var ep = 0, filled = 0;
+      for(var k=0;k<valCols.length;k++){
+        var v = cell(row,valCols[k]).toUpperCase();
+        if(!v) continue;
+        filled++; filledTotal++;
+        if(v === 'EP') ep++;
+        else if(!/^(MS|S)$/.test(v)) otherVals.add(v);
+      }
+      data.set(norm(name), { name:name, epCount:ep, filled:filled });
+    }
+    if(!data.size) return { ok:false, error:'El mapa no tiene filas de estudiantes.' };
+    return {
+      ok:true, data:data,
+      meta:{
+        count:data.size, valCount:valCols.length, asignaturas:asignaturas,
+        filledTotal:filledTotal,
+        emptyMap: filledTotal === 0,
+        otherVals: setToArr(otherVals)
+      }
+    };
+  }
+
+  /* ---------- cross-check ---------- */
+  function analyze(notas, mapa){
+    var students = [];
+    var seen = new Set();
+
+    notas.data.forEach(function(n, key){
+      seen.add(key);
+      var m = mapa.data.get(key);
+      var findings = [];
+      var rite = n.rite;
+      var f = n.final;
+      var hasF = !isNaN(f);
+
+      if(VALID_RITE.indexOf(rite) < 0){
+        findings.push(['e', 'RITE vacío o inválido', (n.rite ? '"'+n.rite+'"' : 'sin valor') + ' &mdash; debe ser TEA, TEP o TED.']);
+      }
+      if(!hasF){
+        findings.push(['e', 'Nota final ilegible', 'el valor "'+n.finalRaw+'" no es un número.']);
+      }else{
+        if(f >= 7 && rite !== 'TEA'){
+          findings.push(['e', 'Nota ' + fmt(f) + ' ≥ 7 con RITE ' + (rite||'vacío'), 'con nota final 7 o más el RITE debe ser TEA.']);
+        }
+        if(f < 7 && rite === 'TEA'){
+          findings.push(['e', 'Nota ' + fmt(f) + ' < 7 con RITE TEA', 'debería ser TEP o TED.']);
+        }
+        if(f < 7 && !n.hasComment){
+          findings.push(['e', 'Nota ' + fmt(f) + ' < 7 sin comentario', 'toda nota menor a 7 necesita una observación en la columna Ob.']);
+        }
+        if(f === 10 && !n.hasComment){
+          findings.push(['w', 'Nota 10 sin comentario', 'sugerencia: agregar una observación.']);
+        }
+      }
+
+      if(!m){
+        findings.push(['w', 'Sin fila en el Mapa de Aprendizaje', 'este estudiante figura en calificaciones pero no en el mapa.']);
+      }else{
+        if(m.epCount > 1 && rite === 'TEA'){
+          findings.push(['e', m.epCount + ' valoraciones EP en el mapa con RITE TEA', 'con más de una EP no puede ser TEA; corresponde TEP o TED.']);
+        }else if(m.epCount === 1 && rite === 'TEA'){
+          findings.push(['w', '1 valoración EP en el mapa con RITE TEA', 'revisar si corresponde TEA o TEP.']);
+        }
+      }
+
+      students.push({
+        name:n.name, rite:rite || '—',
+        final: hasF ? fmt(f) : (n.finalRaw || '—'),
+        epCount: m ? m.epCount : null,
+        findings:findings
+      });
+    });
+
+    mapa.data.forEach(function(m, key){
+      if(seen.has(key)) return;
+      students.push({
+        name:m.name, rite:'—', final:'—', epCount:m.epCount,
+        findings:[['w','Solo aparece en el Mapa de Aprendizaje','no tiene fila en la planilla de calificaciones.']]
+      });
+    });
+
+    students.sort(function(a,b){
+      var ra = rank(a), rb = rank(b);
+      if(ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name,'es');
+    });
+
+    var errors = 0, warns = 0;
+    students.forEach(function(s){
+      s.findings.forEach(function(x){ x[0] === 'e' ? errors++ : warns++; });
+    });
+
+    var mismatch = null;
+    var an = setToArr(notas.meta.asignaturas), am = setToArr(mapa.meta.asignaturas);
+    if(an.length && am.length){
+      var union = an.concat(am.filter(function(x){ return an.indexOf(x) < 0; }));
+      if(union.length > 1) mismatch = { notas:an, mapa:am };
+    }
+
+    var notes = [];
+    if(mapa.meta.emptyMap){
+      notes.push('El Mapa de Aprendizaje no tiene valoraciones cargadas todavía: no se aplican los controles de EP.');
+    }else if(mapa.meta.otherVals && mapa.meta.otherVals.length){
+      notes.push('El mapa tiene valores fuera de la escala EP / S / MS: ' + mapa.meta.otherVals.join(', ') + '.');
+    }
+
+    return {
+      students:students, errors:errors, warns:warns,
+      cleanCount: students.filter(function(s){ return !s.findings.length; }).length,
+      total: students.length,
+      mismatch: mismatch,
+      notes: notes
+    };
+  }
+  function rank(s){
+    if(s.findings.some(function(x){ return x[0]==='e'; })) return 0;
+    if(s.findings.length) return 1;
+    return 2;
+  }
+  function fmt(n){ return (Math.round(n*100)/100).toString(); }
+  function setToArr(s){ var a=[]; s.forEach(function(v){ a.push(v); }); return a; }
+
+  /* ---------- render ---------- */
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  function renderResult(res, isExample){
+    var h = '';
+    if(isExample){
+      h += '<div class="example-flag">EJEMPLO &mdash; subí tus dos planillas para ver el análisis real</div>';
+    }
+
+    if(res.mismatch){
+      h += '<div class="verdict"><div><h3>Revisar los archivos</h3>'
+         + '<p>Las planillas parecen de asignaturas distintas &mdash; Calificaciones: <b>'
+         + esc(res.mismatch.notas.join(', ')) + '</b> · Mapa: <b>' + esc(res.mismatch.mapa.join(', ')) + '</b></p></div></div>';
+    }
+
+    if(res.notes && res.notes.length){
+      h += '<div class="info-note">';
+      res.notes.forEach(function(t){ h += '<p>' + esc(t) + '</p>'; });
+      h += '</div>';
+    }
+
+    if(res.errors === 0 && res.warns === 0){
+      h += '<div class="verdict clean"><div><h3>&#10003; Todo OK</h3>'
+         + '<p>' + res.total + ' estudiante' + (res.total===1?'':'s') + ' revisados. Sin errores ni advertencias.</p></div></div>';
+      els.results.innerHTML = h;
+      return;
+    }
+
+    h += '<div class="verdict"><div><h3>' + res.errors + ' error' + (res.errors===1?'':'es')
+       + ' · ' + res.warns + ' advertencia' + (res.warns===1?'':'s') + '</h3>'
+       + '<p>Sobre ' + res.total + ' estudiantes revisados, ' + (res.total - res.cleanCount)
+       + ' con observaciones y ' + res.cleanCount + ' sin problemas.</p></div></div>';
+
+    h += '<div class="tiles">'
+       + tile('err', res.errors, 'Errores')
+       + tile('wrn', res.warns, 'Advertencias')
+       + tile('good', res.cleanCount, 'Estudiantes OK')
+       + '</div>';
+
+    var withErr = res.students.filter(function(s){ return s.findings.some(function(x){return x[0]==='e';}); });
+    var onlyWarn = res.students.filter(function(s){ return s.findings.length && !s.findings.some(function(x){return x[0]==='e';}); });
+    var clean = res.students.filter(function(s){ return !s.findings.length; });
+
+    if(withErr.length){
+      h += '<div class="group-label">Con errores &mdash; ' + withErr.length + '</div>';
+      withErr.forEach(function(s){ h += stuCard(s); });
+    }
+    if(onlyWarn.length){
+      h += '<div class="group-label">Solo advertencias &mdash; ' + onlyWarn.length + '</div>';
+      onlyWarn.forEach(function(s){ h += stuCard(s); });
+    }
+    if(clean.length){
+      h += '<details class="clean-list"><summary>' + clean.length + ' estudiante' + (clean.length===1?'':'s') + ' sin observaciones</summary><div class="names">';
+      clean.forEach(function(s){ h += '<span>' + esc(s.name) + '</span>'; });
+      h += '</div></details>';
+    }
+
+    els.results.innerHTML = h;
+  }
+
+  function tile(cls, n, lbl){
+    return '<div class="tile ' + cls + '"><div class="n">' + n + '</div><div class="lbl">' + lbl + '</div></div>';
+  }
+  function stuCard(s){
+    var cls = s.findings.some(function(x){return x[0]==='e';}) ? 'has-error'
+            : (s.findings.length ? 'has-warn' : '');
+    var h = '<div class="stu ' + cls + '"><div class="stu-head">'
+          + '<span class="stu-name">' + esc(s.name) + '</span>'
+          + '<span class="badge rite">RITE ' + esc(s.rite) + '</span>'
+          + '<span class="badge">Nota ' + esc(s.final) + '</span>'
+          + (s.epCount != null ? '<span class="badge">EP &times; ' + s.epCount + '</span>' : '')
+          + '</div>';
+    if(s.findings.length){
+      h += '<ul class="findings">';
+      s.findings.forEach(function(f){
+        h += '<li class="' + f[0] + '"><span class="sev"></span><span><b>' + f[1] + '.</b> ' + f[2] + '</span></li>';
+      });
+      h += '</ul>';
+    }
+    return h + '</div>';
+  }
+
+  /* ---------- upload wiring ---------- */
+  function setStatus(kind, cls, title, detail, fileName){
+    var box = document.getElementById('status-' + kind);
+    box.hidden = false;
+    box.className = 'status' + (cls ? ' ' + cls : '');
+    box.innerHTML = '<span class="dot"></span><span class="msg"><strong>' + title + '</strong>'
+      + (detail ? '<span>' + detail + '</span>' : '')
+      + (fileName ? '<span class="file">' + esc(fileName) + '</span>' : '') + '</span>';
+  }
+
+  function handleFile(kind, file){
+    if(!file) return;
+    state.processedReal = false;
+    if(!/\.xlsx$/i.test(file.name)){
+      state[kind] = null;
+      document.getElementById('drop-' + kind).className = 'drop state-error';
+      setStatus(kind, 'error', 'Formato no válido', 'Se espera un archivo .xlsx de Excel.', file.name);
+      refresh();
+      return;
+    }
+    setStatus(kind, '', 'Leyendo…', 'Analizando el contenido de la planilla.', file.name);
+    readFile(file).then(function(rows){
+      var res = kind === 'notas' ? validateNotas(rows) : validateMapa(rows);
+      var drop = document.getElementById('drop-' + kind);
+      if(res.ok){
+        state[kind] = res;
+        drop.className = 'drop state-ok';
+        var detail;
+        if(kind === 'notas'){
+          detail = res.meta.count + ' estudiantes · columnas detectadas: ' + res.meta.cols.join(' · ');
+        }else if(res.meta.emptyMap){
+          detail = res.meta.count + ' estudiantes · ' + res.meta.valCount + ' columnas de valoración · sin valoraciones cargadas todavía';
+        }else{
+          detail = res.meta.count + ' estudiantes · ' + res.meta.valCount + ' columnas de valoración · ' + res.meta.filledTotal + ' valoraciones cargadas';
+        }
+        setStatus(kind, 'ok', 'Formato correcto', detail, file.name);
+      }else{
+        state[kind] = null;
+        drop.className = 'drop state-error';
+        setStatus(kind, 'error', 'Revisar el archivo', res.error, file.name);
+      }
+      refresh();
+    }).catch(function(e){
+      state[kind] = null;
+      document.getElementById('drop-' + kind).className = 'drop state-error';
+      setStatus(kind, 'error', 'No se pudo leer', (e && e.message) || 'Archivo dañado o protegido.', file.name);
+      refresh();
+    });
+  }
+
+  function refresh(){
+    var ready = !!(state.notas && state.mapa);
+    els.btnProcess.disabled = !ready;
+    els.btnReset.hidden = !(state.notas || state.mapa);
+    if(state.processedReal){
+      els.note.textContent = 'Análisis actualizado. Volvé a procesar si cambiás un archivo.';
+    }else if(ready){
+      els.note.textContent = 'Todo listo. Hacé clic en Procesar.';
+    }else{
+      var faltan = [];
+      if(!state.notas) faltan.push('calificaciones');
+      if(!state.mapa) faltan.push('mapa de aprendizaje');
+      els.note.textContent = 'Falta cargar: ' + faltan.join(' y ') + '.';
+    }
+  }
+
+  ['notas','mapa'].forEach(function(kind){
+    var drop = document.getElementById('drop-' + kind);
+    var input = document.getElementById('file-' + kind);
+    input.addEventListener('change', function(){ handleFile(kind, input.files[0]); });
+    ['dragenter','dragover'].forEach(function(ev){
+      drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('dragover'); });
+    });
+    ['dragleave','drop'].forEach(function(ev){
+      drop.addEventListener(ev, function(e){ e.preventDefault(); if(ev==='drop'||e.target===drop) drop.classList.remove('dragover'); });
+    });
+    drop.addEventListener('drop', function(e){
+      drop.classList.remove('dragover');
+      var f = e.dataTransfer && e.dataTransfer.files[0];
+      if(f){ input.value = ''; handleFile(kind, f); }
+    });
+  });
+
+  els.btnProcess.addEventListener('click', function(){
+    if(!state.notas || !state.mapa) return;
+    var res = analyze(state.notas, state.mapa);
+    state.processedReal = true;
+    renderResult(res, false);
+    refresh();
+    document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+  });
+
+  els.btnReset.addEventListener('click', function(){
+    state.notas = null; state.mapa = null; state.processedReal = false;
+    ['notas','mapa'].forEach(function(kind){
+      document.getElementById('drop-' + kind).className = 'drop';
+      document.getElementById('file-' + kind).value = '';
+      document.getElementById('status-' + kind).hidden = true;
+    });
+    renderResult(EXAMPLE, true);
+    refresh();
+  });
+
+  /* ---------- example (shown on load) ---------- */
+  var EXAMPLE = {
+    errors:1, warns:2, cleanCount:2, total:5, mismatch:null,
+    students:[
+      { name:'Duarte , Thiago', rite:'TEP', final:'8', epCount:0,
+        findings:[['e','Nota 8 ≥ 7 con RITE TEP','con nota final 7 o más el RITE debe ser TEA.']] },
+      { name:'Reynoso , Tania', rite:'TEA', final:'7', epCount:1,
+        findings:[['w','1 valoración EP en el mapa con RITE TEA','revisar si corresponde TEA o TEP.']] },
+      { name:'Sforzini , Juan', rite:'TEA', final:'10', epCount:0,
+        findings:[['w','Nota 10 sin comentario','sugerencia: agregar una observación.']] },
+      { name:'Accastelli , Tiziano', rite:'TEP', final:'6', epCount:2, findings:[] },
+      { name:'Anderson , Agustín', rite:'TEA', final:'9', epCount:0, findings:[] }
+    ]
+  };
+
+  renderResult(EXAMPLE, true);
+  refresh();
+})();
+</script>

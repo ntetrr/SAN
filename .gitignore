@@ -1,0 +1,9 @@
+# Planillas reales de estudiantes — NO subir (datos personales)
+*.xlsx
+*.xls
+
+# Archivos sueltos / temporales
+hola
+*.tmp
+.DS_Store
+Thumbs.db
