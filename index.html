@@ -177,12 +177,11 @@
   }
   .info-note p{margin:0}
   .info-note p + p{margin-top:6px}
-  .example-flag{
-    display:inline-flex;align-items:center;gap:8px;font-size:12px;
-    font-family:"IBM Plex Mono", monospace;letter-spacing:.04em;
-    color:var(--warn);background:var(--warn-soft);
-    padding:5px 11px;border-radius:999px;margin-bottom:16px;
+  .results-empty{
+    margin:0;padding:20px 18px;border:1px dashed var(--line);border-radius:var(--radius);
+    background:var(--surface-sunk);color:var(--ink-faint);font-size:13px;
   }
+  .results-empty b{color:var(--ink-soft);font-weight:600}
 
   .verdict{
     border-radius:var(--radius);padding:22px 24px;margin-bottom:20px;
@@ -573,11 +572,8 @@
   /* ---------- render ---------- */
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
-  function renderResult(res, isExample){
+  function renderResult(res){
     var h = '';
-    if(isExample){
-      h += '<div class="example-flag">EJEMPLO &mdash; subí tus dos planillas para ver el análisis real</div>';
-    }
 
     if(res.mismatch){
       h += '<div class="verdict"><div><h3>Revisar los archivos</h3>'
@@ -665,6 +661,7 @@
   function handleFile(kind, file){
     if(!file) return;
     state.processedReal = false;
+    showEmpty();
     if(!/\.xlsx$/i.test(file.name)){
       state[kind] = null;
       document.getElementById('drop-' + kind).className = 'drop state-error';
@@ -739,7 +736,7 @@
     if(!state.notas || !state.mapa) return;
     var res = analyze(state.notas, state.mapa);
     state.processedReal = true;
-    renderResult(res, false);
+    renderResult(res);
     refresh();
     document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
   });
@@ -751,26 +748,15 @@
       document.getElementById('file-' + kind).value = '';
       document.getElementById('status-' + kind).hidden = true;
     });
-    renderResult(EXAMPLE, true);
+    showEmpty();
     refresh();
   });
 
-  /* ---------- example (shown on load) ---------- */
-  var EXAMPLE = {
-    errors:1, warns:2, cleanCount:2, total:5, mismatch:null,
-    students:[
-      { name:'Duarte , Thiago', rite:'TEP', final:'8', epCount:0,
-        findings:[['e','Nota 8 ≥ 7 con RITE TEP','con nota final 7 o más el RITE debe ser TEA.']] },
-      { name:'Reynoso , Tania', rite:'TEA', final:'7', epCount:1,
-        findings:[['w','1 valoración EP en el mapa con RITE TEA','revisar si corresponde TEA o TEP.']] },
-      { name:'Sforzini , Juan', rite:'TEA', final:'10', epCount:0,
-        findings:[['w','Nota 10 sin comentario','sugerencia: agregar una observación.']] },
-      { name:'Accastelli , Tiziano', rite:'TEP', final:'6', epCount:2, findings:[] },
-      { name:'Anderson , Agustín', rite:'TEA', final:'9', epCount:0, findings:[] }
-    ]
-  };
+  function showEmpty(){
+    els.results.innerHTML = '<p class="results-empty">Todavía sin análisis. Cargá las dos planillas y presioná <b>Procesar</b>.</p>';
+  }
 
-  renderResult(EXAMPLE, true);
+  showEmpty();
   refresh();
 })();
 </script>
