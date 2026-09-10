@@ -26,7 +26,7 @@ Abrir la página publicada con GitHub Pages:
 | Nota final ≥ 7 y RITE ≠ TEA | Error |
 | Nota final < 7 y RITE = TEA | Error |
 | RITE vacío o distinto de TEA / TEP / TED | Error |
-| RITE = TEP sin comentario en la columna `Ob` | Error (comentario obligatorio) |
+| RITE = TEP o TED sin comentario en la columna `Ob` | Error a corregir (marcado más fuerte) |
 | Nota final < 7 sin comentario en la columna `Ob` | Error |
 | RITE = TEA con nota 10 y sin comentario | Advertencia (alumno sobresaliente) |
 | Notas 7 – 9 sin comentario | No se controla |

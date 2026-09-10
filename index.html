@@ -228,6 +228,7 @@
   }
   .stu.has-error{border-left-color:var(--error)}
   .stu.has-warn{border-left-color:var(--warn)}
+  .stu.has-crit{border-left-width:5px;border-left-color:var(--error);background:var(--error-soft)}
   .stu-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .stu-name{font-weight:600;font-size:14px}
   .badge{
@@ -242,8 +243,19 @@
     flex:none;width:7px;height:7px;border-radius:50%;margin-top:6px;
   }
   .findings li.e .sev{background:var(--error)}
+  .findings li.x .sev{background:var(--error);box-shadow:0 0 0 3px color-mix(in srgb,var(--error) 25%,transparent)}
   .findings li.w .sev{background:var(--warn)}
   .findings li b{color:var(--ink);font-weight:600}
+  .findings li.x b{color:var(--error)}
+  .fix-tag{
+    display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;
+    font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+    background:var(--error);color:var(--surface);
+    padding:1px 6px;border-radius:4px;vertical-align:1px;
+  }
+  :root[data-theme="dark"] .fix-tag,
+  :root:not([data-theme="light"]) .fix-tag{color:#1a1010}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .fix-tag{color:#1a1010}}
 
   details.clean-list{margin-top:20px}
   details.clean-list summary{
@@ -318,7 +330,7 @@
     <strong>Qué se controla en cada estudiante</strong><br>
     · Nota final &ge; 7 &rarr; el RITE debe ser <b>TEA</b>.<br>
     · RITE <b>TEP</b> o <b>TED</b> &rarr; la nota final debe ser menor a 7.<br>
-    · RITE <b>TEP</b> &rarr; comentario obligatorio en la columna Ob (error si falta). &nbsp; Nota final menor a 7 &rarr; también requiere comentario.<br>
+    · RITE <b>TEP</b> o <b>TED</b> &rarr; comentario obligatorio en la columna Ob (error a corregir si falta). &nbsp; Nota final menor a 7 &rarr; también requiere comentario.<br>
     · RITE <b>TEA</b> con nota 10 y sin comentario &rarr; advertencia (alumno sobresaliente).<br>
     · Valoraciones <b>NM</b> o <b>EP</b> en el Mapa (columnas Participación, Responsabilidad, Evidencias): una sola con RITE TEA &rarr; advertencia; más de una con RITE TEA &rarr; error (debe ser TEP o TED).<br>
     · Estudiante sin fila en el Mapa, o con el Mapa sin valoraciones cargadas &rarr; <b>error</b> (hay que completarlo).<br>
@@ -512,8 +524,8 @@
       }
 
       // Comentario obligatorio
-      if(!n.hasComment && rite === 'TEP'){
-        findings.push(['e', 'RITE TEP sin comentario', 'un RITE TEP requiere comentario obligatorio en la columna Ob.']);
+      if(!n.hasComment && (rite === 'TEP' || rite === 'TED')){
+        findings.push(['x', 'RITE ' + rite + ' sin comentario', 'un RITE ' + rite + ' requiere comentario obligatorio en la columna Ob. Debe corregirse antes del cierre.']);
       }else if(!n.hasComment && hasF && f < 7){
         findings.push(['e', 'Nota ' + fmt(f) + ' < 7 sin comentario', 'toda nota menor a 7 necesita una observación en la columna Ob.']);
       }
@@ -566,9 +578,12 @@
       return a.name.localeCompare(b.name,'es');
     });
 
-    var errors = blockers.length, warns = 0;
+    var errors = blockers.length, warns = 0, crits = 0;
     students.forEach(function(s){
-      s.findings.forEach(function(x){ x[0] === 'e' ? errors++ : warns++; });
+      s.findings.forEach(function(x){
+        if(x[0] === 'w') warns++;
+        else { errors++; if(x[0] === 'x') crits++; }
+      });
     });
 
     var mismatch = null;
@@ -584,7 +599,7 @@
     }
 
     return {
-      students:students, errors:errors, warns:warns,
+      students:students, errors:errors, warns:warns, crits:crits,
       cleanCount: students.filter(function(s){ return !s.findings.length; }).length,
       total: students.length,
       mismatch: mismatch,
@@ -592,10 +607,13 @@
       notes: notes
     };
   }
+  function hasSev(s, sev){ return s.findings.some(function(x){ return x[0] === sev; }); }
+  function isErr(x){ return x[0] === 'e' || x[0] === 'x'; }
   function rank(s){
-    if(s.findings.some(function(x){ return x[0]==='e'; })) return 0;
-    if(s.findings.length) return 1;
-    return 2;
+    if(hasSev(s,'x')) return 0;
+    if(s.findings.some(isErr)) return 1;
+    if(s.findings.length) return 2;
+    return 3;
   }
   function fmt(n){ return (Math.round(n*100)/100).toString(); }
   function setToArr(s){ var a=[]; s.forEach(function(v){ a.push(v); }); return a; }
@@ -643,20 +661,22 @@
     h += '<div class="verdict"><div><h3>' + res.errors + ' error' + (res.errors===1?'':'es')
        + ' · ' + res.warns + ' advertencia' + (res.warns===1?'':'s') + '</h3>'
        + '<p>Sobre ' + res.total + ' estudiantes revisados, ' + (res.total - res.cleanCount)
-       + ' con observaciones y ' + res.cleanCount + ' sin problemas.</p></div></div>';
+       + ' con hallazgos y ' + res.cleanCount + ' sin inconsistencias.'
+       + (res.crits ? ' <b>' + res.crits + ' punto' + (res.crits===1?'':'s') + ' a corregir.</b>' : '')
+       + '</p></div></div>';
 
     h += '<div class="tiles">'
        + tile('err', res.errors, 'Errores')
        + tile('wrn', res.warns, 'Advertencias')
-       + tile('good', res.cleanCount, 'Estudiantes OK')
+       + tile('good', res.cleanCount, 'Sin inconsistencias')
        + '</div>';
 
-    var withErr = res.students.filter(function(s){ return s.findings.some(function(x){return x[0]==='e';}); });
-    var onlyWarn = res.students.filter(function(s){ return s.findings.length && !s.findings.some(function(x){return x[0]==='e';}); });
+    var withErr = res.students.filter(function(s){ return s.findings.some(isErr); });
+    var onlyWarn = res.students.filter(function(s){ return s.findings.length && !s.findings.some(isErr); });
     var clean = res.students.filter(function(s){ return !s.findings.length; });
 
     if(withErr.length){
-      h += '<div class="group-label">Con errores &mdash; ' + withErr.length + '</div>';
+      h += '<div class="group-label">A corregir &mdash; ' + withErr.length + '</div>';
       withErr.forEach(function(s){ h += stuCard(s); });
     }
     if(onlyWarn.length){
@@ -664,7 +684,7 @@
       onlyWarn.forEach(function(s){ h += stuCard(s); });
     }
     if(clean.length){
-      h += '<details class="clean-list"><summary>' + clean.length + ' estudiante' + (clean.length===1?'':'s') + ' sin observaciones</summary><div class="names">';
+      h += '<details class="clean-list"><summary>' + clean.length + ' estudiante' + (clean.length===1?'':'s') + ' sin inconsistencias</summary><div class="names">';
       clean.forEach(function(s){ h += '<span>' + esc(s.name) + '</span>'; });
       h += '</div></details>';
     }
@@ -676,8 +696,9 @@
     return '<div class="tile ' + cls + '"><div class="n">' + n + '</div><div class="lbl">' + lbl + '</div></div>';
   }
   function stuCard(s){
-    var cls = s.findings.some(function(x){return x[0]==='e';}) ? 'has-error'
-            : (s.findings.length ? 'has-warn' : '');
+    var cls = hasSev(s,'x') ? 'has-crit'
+            : (s.findings.some(isErr) ? 'has-error'
+            : (s.findings.length ? 'has-warn' : ''));
     var h = '<div class="stu ' + cls + '"><div class="stu-head">'
           + '<span class="stu-name">' + esc(s.name) + '</span>'
           + '<span class="badge rite">RITE ' + esc(s.rite) + '</span>'
@@ -687,7 +708,8 @@
     if(s.findings.length){
       h += '<ul class="findings">';
       s.findings.forEach(function(f){
-        h += '<li class="' + f[0] + '"><span class="sev"></span><span><b>' + f[1] + '.</b> ' + f[2] + '</span></li>';
+        var tag = f[0] === 'x' ? '<span class="fix-tag">corregir</span> ' : '';
+        h += '<li class="' + f[0] + '"><span class="sev"></span><span>' + tag + '<b>' + f[1] + '.</b> ' + f[2] + '</span></li>';
       });
       h += '</ul>';
     }
