@@ -362,6 +362,16 @@
     for(var i=0;i<headers.length;i++){ if(test(String(headers[i]||"").trim())) return i; }
     return -1;
   }
+  // "Final 100%" es la columna de nota final; hay que evitar confundirla con
+  // columnas de evaluación como "EV FINAL 70% Examen 70%".
+  function pickFinalCol(headers){
+    var i = colIndex(headers, function(h){ return /^final\b/i.test(h); });
+    if(i >= 0) return i;
+    for(var k=headers.length-1;k>=0;k--){
+      if(/\bfinal\b/i.test(String(headers[k]||"").trim())) return k;
+    }
+    return -1;
+  }
 
   /* ---------- parse ---------- */
   function readFile(file){
@@ -385,9 +395,9 @@
     if(hr < 0) return { ok:false, error:'No se encontró la columna "Estudiante". ¿Es la planilla de calificaciones?' };
     var headers = rows[hr];
     var iEst  = colIndex(headers, function(h){ return norm(h) === 'estudiante'; });
-    var iRite = colIndex(headers, function(h){ return /rite/i.test(h); });
+    var iRite = colIndex(headers, function(h){ return /^rite\b/i.test(h); });
     var iObs  = colIndex(headers, function(h){ return /^ob\b/i.test(h) || /observ/i.test(h); });
-    var iFin  = colIndex(headers, function(h){ return /final/i.test(h); });
+    var iFin  = pickFinalCol(headers);
 
     var missing = [];
     if(iRite < 0) missing.push('RITE');
@@ -453,7 +463,7 @@
         if(!v) continue;
         filled++; filledTotal++;
         if(v === 'EP') ep++;
-        else if(!/^(MS|S)$/.test(v)) otherVals.add(v);
+        else if(!/^(MS|S|NM|NC|N\/C|N\/M)$/.test(v)) otherVals.add(v);
       }
       data.set(norm(name), { name:name, epCount:ep, filled:filled });
     }
