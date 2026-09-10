@@ -289,7 +289,7 @@
       <div class="drop" id="drop-mapa" data-kind="mapa">
         <div class="drop-kicker">Archivo B</div>
         <div class="drop-title">Mapa de Aprendizaje</div>
-        <div class="drop-hint">Debe incluir la columna <strong>Estudiante</strong> y las valoraciones (<strong>EP</strong> / <strong>S</strong> / <strong>MS</strong>).</div>
+        <div class="drop-hint">Debe incluir la columna <strong>Estudiante</strong> y las valoraciones (<strong>NM</strong> / <strong>EP</strong> / <strong>S</strong> / <strong>MS</strong>).</div>
         <label class="zone" for="file-mapa">
           <span class="z-main">Arrastrá el <b>.xlsx</b> del mapa</span>
           <span>o hacé clic para elegirlo</span>
@@ -316,8 +316,9 @@
     <strong>Qué se controla en cada estudiante</strong><br>
     · Nota final &ge; 7 &rarr; el RITE debe ser <b>TEA</b>.<br>
     · RITE <b>TEP</b> o <b>TED</b> &rarr; la nota final debe ser menor a 7.<br>
-    · Nota final menor a 7 &rarr; debe tener un comentario (columna Ob). &nbsp; Nota 10 sin comentario &rarr; sugerencia.<br>
-    · 1 valoración <b>EP</b> en el mapa con RITE TEA &rarr; advertencia. &nbsp; Más de una EP con TEA &rarr; error (debería ser TEP o TED).<br>
+    · RITE <b>TEP</b> &rarr; comentario obligatorio en la columna Ob (error si falta). &nbsp; Nota final menor a 7 &rarr; también requiere comentario.<br>
+    · RITE <b>TEA</b> con nota 10 y sin comentario &rarr; advertencia (alumno sobresaliente).<br>
+    · Valoraciones <b>NM</b> o <b>EP</b> en el Mapa (columnas Participación, Responsabilidad, Evidencias): una sola con RITE TEA &rarr; advertencia; más de una con RITE TEA &rarr; error (debe ser TEP o TED).<br>
     · Se avisa si un estudiante figura en una planilla y no en la otra, o si las planillas parecen de asignaturas distintas.
   </footer>
 </div>
@@ -446,7 +447,7 @@
       if(/final/i.test(h)) continue;
       valCols.push(c);
     }
-    if(!valCols.length) return { ok:false, error:'No se encontraron columnas de valoración (EP / S / MS) en el mapa.' };
+    if(!valCols.length) return { ok:false, error:'No se encontraron columnas de valoración (NM / EP / S / MS) en el mapa.' };
 
     var data = new Map();
     var asignaturas = new Set();
@@ -457,15 +458,16 @@
       var name = cell(row,iEst);
       if(!name) continue;
       if(iAsig>=0 && cell(row,iAsig)) asignaturas.add(cell(row,iAsig));
-      var ep = 0, filled = 0;
+      var ep = 0, nm = 0, filled = 0;
       for(var k=0;k<valCols.length;k++){
         var v = cell(row,valCols[k]).toUpperCase();
         if(!v) continue;
         filled++; filledTotal++;
         if(v === 'EP') ep++;
-        else if(!/^(MS|S|NM|NC|N\/C|N\/M)$/.test(v)) otherVals.add(v);
+        else if(v === 'NM') nm++;
+        else if(!/^(MS|S)$/.test(v)) otherVals.add(v);
       }
-      data.set(norm(name), { name:name, epCount:ep, filled:filled });
+      data.set(norm(name), { name:name, ep:ep, nm:nm, low:ep+nm, filled:filled });
     }
     if(!data.size) return { ok:false, error:'El mapa no tiene filas de estudiantes.' };
     return {
@@ -504,28 +506,32 @@
         if(f < 7 && rite === 'TEA'){
           findings.push(['e', 'Nota ' + fmt(f) + ' < 7 con RITE TEA', 'debería ser TEP o TED.']);
         }
-        if(f < 7 && !n.hasComment){
-          findings.push(['e', 'Nota ' + fmt(f) + ' < 7 sin comentario', 'toda nota menor a 7 necesita una observación en la columna Ob.']);
-        }
-        if(f === 10 && !n.hasComment){
-          findings.push(['w', 'Nota 10 sin comentario', 'sugerencia: agregar una observación.']);
-        }
+      }
+
+      // Comentario obligatorio
+      if(!n.hasComment && rite === 'TEP'){
+        findings.push(['e', 'RITE TEP sin comentario', 'un RITE TEP requiere comentario obligatorio en la columna Ob.']);
+      }else if(!n.hasComment && hasF && f < 7){
+        findings.push(['e', 'Nota ' + fmt(f) + ' < 7 sin comentario', 'toda nota menor a 7 necesita una observación en la columna Ob.']);
+      }
+      if(!n.hasComment && hasF && f === 10 && rite === 'TEA'){
+        findings.push(['w', 'Nota 10 (TEA) sin comentario', 'alumno sobresaliente: se sugiere agregar un comentario.']);
       }
 
       if(!m){
         findings.push(['w', 'Sin fila en el Mapa de Aprendizaje', 'este estudiante figura en calificaciones pero no en el mapa.']);
       }else{
-        if(m.epCount > 1 && rite === 'TEA'){
-          findings.push(['e', m.epCount + ' valoraciones EP en el mapa con RITE TEA', 'con más de una EP no puede ser TEA; corresponde TEP o TED.']);
-        }else if(m.epCount === 1 && rite === 'TEA'){
-          findings.push(['w', '1 valoración EP en el mapa con RITE TEA', 'revisar si corresponde TEA o TEP.']);
+        if(m.low > 1 && rite === 'TEA'){
+          findings.push(['e', m.low + ' valoraciones NM/EP en el mapa con RITE TEA', 'con más de una valoración NM o EP no corresponde TEA; debe ser TEP o TED.']);
+        }else if(m.low === 1 && rite === 'TEA'){
+          findings.push(['w', '1 valoración NM/EP en el mapa con RITE TEA', 'permitido, pero conviene revisar si corresponde TEA o TEP.']);
         }
       }
 
       students.push({
         name:n.name, rite:rite || '—',
         final: hasF ? fmt(f) : (n.finalRaw || '—'),
-        epCount: m ? m.epCount : null,
+        low: m ? m.low : null,
         findings:findings
       });
     });
@@ -533,7 +539,7 @@
     mapa.data.forEach(function(m, key){
       if(seen.has(key)) return;
       students.push({
-        name:m.name, rite:'—', final:'—', epCount:m.epCount,
+        name:m.name, rite:'—', final:'—', low:m.low,
         findings:[['w','Solo aparece en el Mapa de Aprendizaje','no tiene fila en la planilla de calificaciones.']]
       });
     });
@@ -646,7 +652,7 @@
           + '<span class="stu-name">' + esc(s.name) + '</span>'
           + '<span class="badge rite">RITE ' + esc(s.rite) + '</span>'
           + '<span class="badge">Nota ' + esc(s.final) + '</span>'
-          + (s.epCount != null ? '<span class="badge">EP &times; ' + s.epCount + '</span>' : '')
+          + (s.low != null ? '<span class="badge">NM/EP &times; ' + s.low + '</span>' : '')
           + '</div>';
     if(s.findings.length){
       h += '<ul class="findings">';

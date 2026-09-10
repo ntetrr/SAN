@@ -26,14 +26,18 @@ Abrir la página publicada con GitHub Pages:
 | Nota final ≥ 7 y RITE ≠ TEA | Error |
 | Nota final < 7 y RITE = TEA | Error |
 | RITE vacío o distinto de TEA / TEP / TED | Error |
+| RITE = TEP sin comentario en la columna `Ob` | Error (comentario obligatorio) |
 | Nota final < 7 sin comentario en la columna `Ob` | Error |
-| Nota = 10 sin comentario | Advertencia |
+| RITE = TEA con nota 10 y sin comentario | Advertencia (alumno sobresaliente) |
 | Notas 7 – 9 sin comentario | No se controla |
-| Más de una valoración `EP` en el mapa con RITE = TEA | Error (debería ser TEP o TED) |
-| Exactamente una `EP` con RITE = TEA | Advertencia |
+| Más de una valoración `NM` o `EP` en el mapa con RITE = TEA | Error (debe ser TEP o TED) |
+| Exactamente una `NM` o `EP` con RITE = TEA | Advertencia (permitido) |
 | Un estudiante aparece en una planilla y no en la otra | Advertencia |
 | Las dos planillas parecen de asignaturas distintas | Aviso |
-| El mapa no tiene valoraciones cargadas | Aviso (no se aplican los controles de EP) |
+| El mapa no tiene valoraciones cargadas | Aviso (no se aplican los controles de NM/EP) |
+
+Las valoraciones del Mapa se leen de las columnas **Participación**, **Responsabilidad**
+y **Evidencias** (escala `NM` / `EP` / `S` / `MS`). Se cuentan juntas las `NM` y las `EP`.
 
 ## Formato esperado de los archivos
 
@@ -41,8 +45,8 @@ Abrir la página publicada con GitHub Pages:
 contenga `RITE`, una que empiece con `Ob` (observación) y una que contenga `Final`.
 
 **Mapa de Aprendizaje** — fila de encabezados con `Estudiante` y las columnas de valoración
-(`Participac`, `Responsabi`, `Evidencias`, …) con valores `EP` / `S` / `MS`. No debe tener
-columna `RITE`.
+(`Participac`, `Responsabi`, `Evidencias`, …) con valores `NM` / `EP` / `S` / `MS`. No debe
+tener columna `RITE`.
 
 Los nombres se cruzan entre planillas normalizando mayúsculas, espacios y acentos.
 
