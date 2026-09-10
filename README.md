@@ -32,9 +32,10 @@ Abrir la página publicada con GitHub Pages:
 | Notas 7 – 9 sin comentario | No se controla |
 | Más de una valoración `NM` o `EP` en el mapa con RITE = TEA | Error (debe ser TEP o TED) |
 | Exactamente una `NM` o `EP` con RITE = TEA | Advertencia (permitido) |
-| Un estudiante aparece en una planilla y no en la otra | Advertencia |
+| Estudiante sin fila en el Mapa, o con el Mapa sin valoraciones cargadas | Error (hay que completarlo) |
+| Estudiante solo en el Mapa y no en Calificaciones | Advertencia |
 | Las dos planillas parecen de asignaturas distintas | Aviso |
-| El mapa no tiene valoraciones cargadas | Aviso (no se aplican los controles de NM/EP) |
+| El Mapa no tiene ninguna valoración cargada (para nadie) | Un solo error general en vez de uno por estudiante |
 
 Las valoraciones del Mapa se leen de las columnas **Participación**, **Responsabilidad**
 y **Evidencias** (escala `NM` / `EP` / `S` / `MS`). Se cuentan juntas las `NM` y las `EP`.

@@ -189,6 +189,8 @@
     display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;
   }
   .verdict.clean{background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 40%,var(--line))}
+  .verdict.blocker{background:var(--error-soft);border-color:color-mix(in srgb,var(--error) 45%,var(--line))}
+  .verdict.blocker h3{color:var(--error)}
   .verdict h3{
     font-family:"Fraunces", Georgia, serif;font-weight:600;font-size:1.4rem;margin:0;
   }
@@ -319,7 +321,8 @@
     · RITE <b>TEP</b> &rarr; comentario obligatorio en la columna Ob (error si falta). &nbsp; Nota final menor a 7 &rarr; también requiere comentario.<br>
     · RITE <b>TEA</b> con nota 10 y sin comentario &rarr; advertencia (alumno sobresaliente).<br>
     · Valoraciones <b>NM</b> o <b>EP</b> en el Mapa (columnas Participación, Responsabilidad, Evidencias): una sola con RITE TEA &rarr; advertencia; más de una con RITE TEA &rarr; error (debe ser TEP o TED).<br>
-    · Se avisa si un estudiante figura en una planilla y no en la otra, o si las planillas parecen de asignaturas distintas.
+    · Estudiante sin fila en el Mapa, o con el Mapa sin valoraciones cargadas &rarr; <b>error</b> (hay que completarlo).<br>
+    · Se avisa si un estudiante figura solo en el Mapa y no en Calificaciones, o si las planillas parecen de asignaturas distintas.
   </footer>
 </div>
 
@@ -518,9 +521,8 @@
         findings.push(['w', 'Nota 10 (TEA) sin comentario', 'alumno sobresaliente: se sugiere agregar un comentario.']);
       }
 
-      if(!m){
-        findings.push(['w', 'Sin fila en el Mapa de Aprendizaje', 'este estudiante figura en calificaciones pero no en el mapa.']);
-      }else{
+      var mapState = !m ? 'norow' : (m.filled === 0 ? 'empty' : 'ok');
+      if(mapState === 'ok'){
         if(m.low > 1 && rite === 'TEA'){
           findings.push(['e', m.low + ' valoraciones NM/EP en el mapa con RITE TEA', 'con más de una valoración NM o EP no corresponde TEA; debe ser TEP o TED.']);
         }else if(m.low === 1 && rite === 'TEA'){
@@ -532,9 +534,23 @@
         name:n.name, rite:rite || '—',
         final: hasF ? fmt(f) : (n.finalRaw || '—'),
         low: m ? m.low : null,
+        mapState: mapState,
         findings:findings
       });
     });
+
+    // Mapa faltante: si le falta a TODOS, un único aviso; si a algunos, uno por estudiante.
+    var missing = students.filter(function(s){ return s.mapState === 'norow' || s.mapState === 'empty'; });
+    var blockers = [];
+    if(missing.length && missing.length >= notas.data.size){
+      blockers.push('El Mapa de Aprendizaje no tiene valoraciones cargadas para ningún estudiante (' + notas.data.size + '). Hay que completar Participación, Responsabilidad y Evidencias antes del cierre.');
+    }else{
+      missing.forEach(function(s){
+        s.findings.unshift(s.mapState === 'norow'
+          ? ['e', 'No figura en el Mapa de Aprendizaje', 'el estudiante no tiene fila en la planilla del mapa.']
+          : ['e', 'Sin valoraciones cargadas en el Mapa', 'faltan las valoraciones de Participación, Responsabilidad y Evidencias.']);
+      });
+    }
 
     mapa.data.forEach(function(m, key){
       if(seen.has(key)) return;
@@ -550,7 +566,7 @@
       return a.name.localeCompare(b.name,'es');
     });
 
-    var errors = 0, warns = 0;
+    var errors = blockers.length, warns = 0;
     students.forEach(function(s){
       s.findings.forEach(function(x){ x[0] === 'e' ? errors++ : warns++; });
     });
@@ -563,10 +579,8 @@
     }
 
     var notes = [];
-    if(mapa.meta.emptyMap){
-      notes.push('El Mapa de Aprendizaje no tiene valoraciones cargadas todavía: no se aplican los controles de EP.');
-    }else if(mapa.meta.otherVals && mapa.meta.otherVals.length){
-      notes.push('El mapa tiene valores fuera de la escala EP / S / MS: ' + mapa.meta.otherVals.join(', ') + '.');
+    if(mapa.meta.otherVals && mapa.meta.otherVals.length){
+      notes.push('El mapa tiene valores fuera de la escala NM / EP / S / MS: ' + mapa.meta.otherVals.join(', ') + '.');
     }
 
     return {
@@ -574,6 +588,7 @@
       cleanCount: students.filter(function(s){ return !s.findings.length; }).length,
       total: students.length,
       mismatch: mismatch,
+      blockers: blockers,
       notes: notes
     };
   }
@@ -597,6 +612,13 @@
          + esc(res.mismatch.notas.join(', ')) + '</b> · Mapa: <b>' + esc(res.mismatch.mapa.join(', ')) + '</b></p></div></div>';
     }
 
+    if(res.blockers && res.blockers.length){
+      res.blockers.forEach(function(t){
+        h += '<div class="verdict blocker"><div><h3>Falta el Mapa de Aprendizaje</h3>'
+           + '<p>' + esc(t) + '</p></div></div>';
+      });
+    }
+
     if(res.notes && res.notes.length){
       h += '<div class="info-note">';
       res.notes.forEach(function(t){ h += '<p>' + esc(t) + '</p>'; });
@@ -606,6 +628,14 @@
     if(res.errors === 0 && res.warns === 0){
       h += '<div class="verdict clean"><div><h3>&#10003; Todo OK</h3>'
          + '<p>' + res.total + ' estudiante' + (res.total===1?'':'s') + ' revisados. Sin errores ni advertencias.</p></div></div>';
+      els.results.innerHTML = h;
+      return;
+    }
+
+    var anyStudentFinding = res.students.some(function(s){ return s.findings.length; });
+    if(res.blockers && res.blockers.length && !anyStudentFinding){
+      h += '<p class="results-empty">El resto de los datos (nota final, RITE, comentarios) es consistente en los '
+         + res.total + ' estudiantes. Cargá el Mapa de Aprendizaje y volvé a procesar.</p>';
       els.results.innerHTML = h;
       return;
     }
